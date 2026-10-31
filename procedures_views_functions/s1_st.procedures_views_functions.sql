@@ -90,8 +90,59 @@ begin
 end;
 $$ language plpgsql;
 
-select * from get_crew_by_role('Captain');
+select * from get_crew_by_role('First Officer');
 
+--Задание 3
+create or replace procedure add_seat(p_airport_code text, p_seat_no text, p_fare_conditions text)
+language plpgsql as $$
+begin
+	insert into seats (airplane_code, seat_no, fare_conditions)
+	values(p_airport_code, p_seat_no, p_fare_conditions);
+
+	exception
+	when unique_violation then
+		raise notice 'Ошибка: Такое место уже существует!';
+	when foreign_key_violation then
+		raise notice 'Ошибка: Такого самолета не существует!';
+end;
+$$;
+
+call add_seat('32N', '9Z', 'Economy');
+
+call add_seat('32N', '9Z', 'Economy');
+
+call add_seat('XXX', '1A', 'Business');
+
+--Упражнение 4 – Использование временных таблиц
+--Задание 1
+--Создаём временную табличечку
+begin;
+create temp table temp_crew_workload on commit delete rows as
+select cm.crew_id, cm.full_name, cm.role, count(fc.flight_id) as flights_count
+from crew_members cm
+left join flight_crew fc on cm.crew_id = fc.crew_id
+group by cm.crew_id, cm.full_name, cm.role;
+
+--Задание 2
+create index idx_temp_workload_count on temp_crew_workload(flights_count);
+
+analyze temp_crew_workload;
+
+--Задание 3
+select * from temp_crew_workload
+order by flights_count desc, full_name asc
+limit 5;
+
+--Задание 4
+insert into temp_crew_workload (crew_id, full_name, role, flights_count)
+values (43, 'Тест Высокий', 'Flight Attendant', 0);
+
+select * from temp_crew_workload where crew_id = 43;
+
+--Задание 5
+commit;
+
+select * from temp_crew_workload;
 
 
 
